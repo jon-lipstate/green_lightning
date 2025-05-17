@@ -35,13 +35,23 @@ load_shader :: proc(vertex_path, fragment_path: string) -> (shader: Shader, succ
 	gl.ShaderSource(vertex_shader, 1, &vertex_str, nil)
 	gl.CompileShader(vertex_shader)
 
+	status, log_string: i32
+	gl.GetShaderiv(vertex_shader, gl.COMPILE_STATUS, &status)
+	if status == 0 {
+		gl.GetShaderiv(vertex_shader, gl.INFO_LOG_LENGTH, &log_string)
+		log := make([]u8, log_string)
+		defer delete(log)
+		gl.GetShaderInfoLog(vertex_shader, log_string, nil, raw_data(log))
+		fmt.println("VERTEX SHADER ERROR:", string(log))
+		return shader, false
+	}
+
 	fragment_shader := gl.CreateShader(gl.FRAGMENT_SHADER)
 	fragment_str := cstring(raw_data(fragment_code))
 	gl.ShaderSource(fragment_shader, 1, &fragment_str, nil)
 	gl.CompileShader(fragment_shader)
 
 	// Check compilation errors
-	status, log_string: i32
 	gl.GetShaderiv(vertex_shader, gl.COMPILE_STATUS, &status)
 	if status == 0 {
 		gl.GetShaderiv(vertex_shader, gl.INFO_LOG_LENGTH, &log_string)

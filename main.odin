@@ -132,49 +132,15 @@ main :: proc() {
 		view := get_view_matrix(&transform)
 		model := glsl.mat4(1.0)
 
-		// Draw font
-		gl.UseProgram(font_shader.program)
+		// Render the curve
+		render_curve(font_vao, font_shader.program, projection, view, model)
 
-		gl.UniformMatrix4fv(
-			gl.GetUniformLocation(font_shader.program, "projection"),
-			1,
-			gl.FALSE,
-			&projection[0][0],
-		)
-		gl.UniformMatrix4fv(
-			gl.GetUniformLocation(font_shader.program, "view"),
-			1,
-			gl.FALSE,
-			&view[0][0],
-		)
-		gl.UniformMatrix4fv(
-			gl.GetUniformLocation(font_shader.program, "model"),
-			1,
-			gl.FALSE,
-			&model[0][0],
-		)
-
-		gl.Uniform4f(gl.GetUniformLocation(font_shader.program, "color"), 1.0, 1.0, 1.0, 1.0)
-		gl.Uniform1f(
-			gl.GetUniformLocation(font_shader.program, "antiAliasingWindowSize"),
-			f32(anti_aliasing_window_size),
-		)
-		gl.Uniform1i(
-			gl.GetUniformLocation(font_shader.program, "enableSuperSamplingAntiAliasing"),
-			i32(enable_supersampling_anti_aliasing),
-		)
-		gl.Uniform1i(
-			gl.GetUniformLocation(font_shader.program, "enableControlPointsVisualization"),
-			i32(enable_control_points_visualization),
-		)
-
-		// Draw the font
-		gl.BindVertexArray(font_vao)
-		gl.DrawArrays(gl.LINE_STRIP, 0, 4) // Drawing control points as a line strip
-		gl.BindVertexArray(0)
-
-		gl.UseProgram(0)
 		gl.Disable(gl.BLEND)
+
+		error := gl.GetError()
+		if error != gl.NO_ERROR {
+			fmt.println("OpenGL error in main loop:", error)
+		}
 
 		glfw.SwapBuffers(window)
 		glfw.PollEvents()
