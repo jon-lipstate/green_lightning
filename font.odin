@@ -25,11 +25,11 @@ create_curve_buffers :: proc() -> bool {
 	gl.GenBuffers(1, &curves_buffer)
 	gl.BindBuffer(gl.TEXTURE_BUFFER, curves_buffer)
 
-	// Define curve data - make sure it has the right format
-	// Each curve is 3 vec2 points = 6 floats
+	// Define curve data - each curve is 3 vec2 points (6 floats)
+	// The C++ version formats this as each curve having 3 entries in the buffer
 	curve_data := [6]f32 {
 		-0.5,
-		-0.5, // p0 
+		-0.5, // p0
 		0.0,
 		0.5, // p1
 		0.5,
@@ -43,20 +43,12 @@ create_curve_buffers :: proc() -> bool {
 	gl.BindTexture(gl.TEXTURE_BUFFER, curves_tbo)
 	gl.TexBuffer(gl.TEXTURE_BUFFER, gl.RG32F, curves_buffer)
 
-	// Check for errors
-	error := gl.GetError()
-	if error != gl.NO_ERROR {
-		fmt.println("OpenGL error after curve buffer setup:", error)
-		return false
-	}
-
 	// Create buffer for glyphs
 	gl.GenBuffers(1, &glyphs_buffer)
 	gl.BindBuffer(gl.TEXTURE_BUFFER, glyphs_buffer)
 
-	// Define glyph data
-	// Format: start index, count of curves
-	glyph_data := [2]i32{0, 1}
+	// Define glyph data - format: start index, count of curves
+	glyph_data := [2]i32{0, 1} // Start at curve 0, use 1 curve
 
 	gl.BufferData(gl.TEXTURE_BUFFER, size_of(glyph_data), &glyph_data, gl.STATIC_DRAW)
 
@@ -65,18 +57,22 @@ create_curve_buffers :: proc() -> bool {
 	gl.BindTexture(gl.TEXTURE_BUFFER, glyphs_tbo)
 	gl.TexBuffer(gl.TEXTURE_BUFFER, gl.RG32I, glyphs_buffer)
 
-	// Check for errors again
-	error = gl.GetError()
-	if error != gl.NO_ERROR {
-		fmt.println("OpenGL error after glyph buffer setup:", error)
-		return false
-	}
+	// Unbind buffers and textures
+	gl.BindBuffer(gl.TEXTURE_BUFFER, 0)
+	gl.BindTexture(gl.TEXTURE_BUFFER, 0)
 
-	fmt.println("Curve buffers created successfully")
-	fmt.println("Curves buffer ID:", curves_buffer)
-	fmt.println("Curves TBO ID:", curves_tbo)
-	fmt.println("Glyphs buffer ID:", glyphs_buffer)
-	fmt.println("Glyphs TBO ID:", glyphs_tbo)
+	// Debug output
+	error := gl.GetError()
+	if error != gl.NO_ERROR {
+		fmt.println("OpenGL error after creating curve buffers:", error)
+		return false
+	} else {
+		fmt.println("Curve buffers created successfully")
+		fmt.println("  Curves buffer ID:", curves_buffer)
+		fmt.println("  Curves TBO ID:", curves_tbo)
+		fmt.println("  Glyphs buffer ID:", glyphs_buffer)
+		fmt.println("  Glyphs TBO ID:", glyphs_tbo)
+	}
 
 	return true
 }
@@ -90,34 +86,34 @@ create_test_vao :: proc() -> u32 {
 	gl.GenBuffers(1, &vbo)
 	gl.GenBuffers(1, &ebo)
 
-	fmt.println("Font VAO", vao)
+	fmt.println("Font VAO:", vao)
 
 	// Data for a quad to render our curve on
-	vertices := [?]f32 {
-		// pos     // uv     // buffer index
+	// Format: pos(x,y), uv(u,v), bufferIndex
+	vertices := [16]f32 {
+		// pos      // uv        
 		-0.5,
 		-0.5,
 		0.0,
-		0.0,
-		0, // bottom left
+		0.0, // bottom left
 		0.5,
 		-0.5,
 		1.0,
-		0.0,
-		0, // bottom right
+		0.0, // bottom right
 		0.5,
 		0.5,
 		1.0,
-		1.0,
-		0, // top right
+		1.0, // top right
 		-0.5,
 		0.5,
 		0.0,
-		1.0,
-		0, // top left
+		1.0, // top left
 	}
 
-	indices := [?]u32 {
+	// Buffer indices for each vertex
+	buffer_indices := [4]i32{0, 0, 0, 0}
+
+	indices := [6]u32 {
 		0,
 		1,
 		2, // first triangle
@@ -126,29 +122,35 @@ create_test_vao :: proc() -> u32 {
 		0, // second triangle
 	}
 
-	// Bind the VAO first, then bind and set vertex buffers
+	// Bind the VAO first
 	gl.BindVertexArray(vao)
 
 	// Bind and initialize VBO
 	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
 	gl.BufferData(gl.ARRAY_BUFFER, size_of(vertices), &vertices, gl.STATIC_DRAW)
 
-	// Bind and initialize EBO
-	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo)
-	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, size_of(indices), &indices, gl.STATIC_DRAW)
-
 	// Set up vertex attribute pointers
 	// Position attribute (vec2)
-	gl.VertexAttribPointer(0, 2, gl.FLOAT, gl.FALSE, 5 * size_of(f32), uintptr(0))
+	gl.VertexAttribPointer(0, 2, gl.FLOAT, gl.FALSE, 4 * size_of(f32), uintptr(0))
 	gl.EnableVertexAttribArray(0)
 
 	// UV attribute (vec2)
-	gl.VertexAttribPointer(1, 2, gl.FLOAT, gl.FALSE, 5 * size_of(f32), uintptr(2 * size_of(f32)))
+	gl.VertexAttribPointer(1, 2, gl.FLOAT, gl.FALSE, 4 * size_of(f32), uintptr(2 * size_of(f32)))
 	gl.EnableVertexAttribArray(1)
 
-	// Buffer index attribute (int)
-	gl.VertexAttribIPointer(2, 1, gl.INT, 5 * size_of(f32), uintptr(4 * size_of(f32)))
+	// Create a separate buffer for the buffer indices
+	buffer_index_vbo: u32
+	gl.GenBuffers(1, &buffer_index_vbo)
+	gl.BindBuffer(gl.ARRAY_BUFFER, buffer_index_vbo)
+	gl.BufferData(gl.ARRAY_BUFFER, size_of(buffer_indices), &buffer_indices, gl.STATIC_DRAW)
+
+	// Buffer index attribute (int) - Important: must use VertexAttribIPointer for integer attributes
+	gl.VertexAttribIPointer(2, 1, gl.INT, 0, uintptr(0))
 	gl.EnableVertexAttribArray(2)
+
+	// Bind EBO
+	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo)
+	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, size_of(indices), &indices, gl.STATIC_DRAW)
 
 	// Check for errors
 	error := gl.GetError()
@@ -158,72 +160,67 @@ create_test_vao :: proc() -> u32 {
 		fmt.println("Test VAO created successfully")
 	}
 
-	// Unbind VAO but not EBO (it stays bound to the VAO)
+	// Unbind VAO (but not EBO, it stays bound to the VAO)
 	gl.BindVertexArray(0)
+	gl.BindBuffer(gl.ARRAY_BUFFER, 0)
 
 	return vao
 }
 
 render_curve :: proc(vao: u32, shader_program: u32, projection, view, model: glsl.mat4) {
-	// fmt.println("Rendering curve...")
-
 	// Bind shader program
 	gl.UseProgram(shader_program)
 
-	// Check if program is valid
-	if shader_program == 0 {
-		fmt.println("ERROR: Shader program is invalid!")
-		return
-	}
-
 	// Set matrices
-	proj_loc := gl.GetUniformLocation(shader_program, "projection")
-	view_loc := gl.GetUniformLocation(shader_program, "view")
-	model_loc := gl.GetUniformLocation(shader_program, "model")
-
-	if proj_loc < 0 || view_loc < 0 || model_loc < 0 {
-		fmt.println("ERROR: Matrix uniform locations not found!")
-	}
+	proj_loc, proj_ok := get_uniform_location(shader_program, "projection")
+	view_loc, view_ok := get_uniform_location(shader_program, "view")
+	model_loc, model_ok := get_uniform_location(shader_program, "model")
 
 	projection := projection
 	view := view
 	model := model
 
-	gl.UniformMatrix4fv(proj_loc, 1, gl.FALSE, &projection[0, 0])
-	gl.UniformMatrix4fv(view_loc, 1, gl.FALSE, &view[0, 0])
-	gl.UniformMatrix4fv(model_loc, 1, gl.FALSE, &model[0, 0])
-
-	// Bind texture buffer objects
-	glyphs_loc := gl.GetUniformLocation(shader_program, "glyphs")
-	curves_loc := gl.GetUniformLocation(shader_program, "curves")
-
-	if glyphs_loc < 0 || curves_loc < 0 {
-		fmt.println("ERROR: Buffer uniform locations not found!")
-		fmt.println("glyphs_loc:", glyphs_loc)
-		fmt.println("curves_loc:", curves_loc)
+	if proj_ok && view_ok && model_ok {
+		gl.UniformMatrix4fv(proj_loc, 1, gl.FALSE, &projection[0, 0])
+		gl.UniformMatrix4fv(view_loc, 1, gl.FALSE, &view[0, 0])
+		gl.UniformMatrix4fv(model_loc, 1, gl.FALSE, &model[0, 0])
 	}
 
-	gl.ActiveTexture(gl.TEXTURE0)
-	gl.BindTexture(gl.TEXTURE_BUFFER, glyphs_tbo)
-	gl.Uniform1i(glyphs_loc, 0)
+	// Bind texture buffer objects
+	glyphs_loc, glyphs_ok := get_uniform_location(shader_program, "glyphs")
+	curves_loc, curves_ok := get_uniform_location(shader_program, "curves")
 
-	gl.ActiveTexture(gl.TEXTURE1)
-	gl.BindTexture(gl.TEXTURE_BUFFER, curves_tbo)
-	gl.Uniform1i(curves_loc, 1)
+	if glyphs_ok && curves_ok {
+		gl.ActiveTexture(gl.TEXTURE0)
+		gl.BindTexture(gl.TEXTURE_BUFFER, glyphs_tbo)
+		gl.Uniform1i(glyphs_loc, 0)
+
+		gl.ActiveTexture(gl.TEXTURE1)
+		gl.BindTexture(gl.TEXTURE_BUFFER, curves_tbo)
+		gl.Uniform1i(curves_loc, 1)
+	}
 
 	// Set other uniform values
-	color_loc := gl.GetUniformLocation(shader_program, "color")
-	aa_loc := gl.GetUniformLocation(shader_program, "antiAliasingWindowSize")
-	ssaa_loc := gl.GetUniformLocation(shader_program, "enableSuperSamplingAntiAliasing")
-	viz_loc := gl.GetUniformLocation(shader_program, "enableControlPointsVisualization")
+	color_loc, color_ok := get_uniform_location(shader_program, "color")
+	aa_loc, aa_ok := get_uniform_location(shader_program, "antiAliasingWindowSize")
+	ssaa_loc, ssaa_ok := get_uniform_location(shader_program, "enableSuperSamplingAntiAliasing")
+	viz_loc, viz_ok := get_uniform_location(shader_program, "enableControlPointsVisualization")
 
-	gl.Uniform4f(color_loc, 1.0, 1.0, 1.0, 1.0)
-	gl.Uniform1f(aa_loc, f32(anti_aliasing_window_size))
-	gl.Uniform1i(ssaa_loc, i32(enable_supersampling_anti_aliasing))
-	gl.Uniform1i(viz_loc, i32(enable_control_points_visualization))
+	if color_ok {
+		gl.Uniform4f(color_loc, 1.0, 1.0, 1.0, 1.0)
+	}
 
-	// Draw the curve
-	gl.BindVertexArray(vao)
+	if aa_ok {
+		gl.Uniform1f(aa_loc, f32(anti_aliasing_window_size))
+	}
+
+	if ssaa_ok {
+		gl.Uniform1i(ssaa_loc, i32(enable_supersampling_anti_aliasing))
+	}
+
+	if viz_ok {
+		gl.Uniform1i(viz_loc, i32(enable_control_points_visualization))
+	}
 
 	// Check for errors before drawing
 	error := gl.GetError()
@@ -231,6 +228,8 @@ render_curve :: proc(vao: u32, shader_program: u32, projection, view, model: gls
 		fmt.println("OpenGL error before drawing:", error)
 	}
 
+	// Draw the curve
+	gl.BindVertexArray(vao)
 	gl.DrawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, nil)
 
 	// Check for errors after drawing
@@ -239,10 +238,9 @@ render_curve :: proc(vao: u32, shader_program: u32, projection, view, model: gls
 		fmt.println("OpenGL error after drawing:", error)
 	}
 
+	// Reset state
 	gl.BindVertexArray(0)
 	gl.ActiveTexture(gl.TEXTURE0)
 	gl.BindTexture(gl.TEXTURE_BUFFER, 0)
 	gl.UseProgram(0)
-
-	// fmt.println("Curve rendering complete")
 }
