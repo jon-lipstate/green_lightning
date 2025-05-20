@@ -32,6 +32,7 @@ glyphs_buffer: u32
 
 setup :: proc() -> bool {
 	gl.GenVertexArrays(1, &empty_vao)
+	fmt.println("Background VAO", empty_vao)
 
 	// Load shaders
 	{

@@ -105,52 +105,54 @@ vec2 rotate(vec2 v) {
 }
 
 void main() {
-	float alpha = 0;
+    result = vec4(1.0, 1.0, 0.0, 1.0);  // Yellow color (R=1, G=1, B=0, A=1)
+	return;
+	// float alpha = 0;
 
-	// Inverse of the diameter of a pixel in uv units for anti-aliasing.
-	vec2 inverseDiameter = 1.0 / (antiAliasingWindowSize * fwidth(uv));
+	// // Inverse of the diameter of a pixel in uv units for anti-aliasing.
+	// vec2 inverseDiameter = 1.0 / (antiAliasingWindowSize * fwidth(uv));
 
-	Glyph glyph = loadGlyph(bufferIndex);
-	for (int i = 0; i < glyph.count; i++) {
-		Curve curve = loadCurve(glyph.start + i);
+	// Glyph glyph = loadGlyph(bufferIndex);
+	// for (int i = 0; i < glyph.count; i++) {
+	// 	Curve curve = loadCurve(glyph.start + i);
 
-		vec2 p0 = curve.p0 - uv;
-		vec2 p1 = curve.p1 - uv;
-		vec2 p2 = curve.p2 - uv;
+	// 	vec2 p0 = curve.p0 - uv;
+	// 	vec2 p1 = curve.p1 - uv;
+	// 	vec2 p2 = curve.p2 - uv;
 
-		alpha += computeCoverage(inverseDiameter.x, p0, p1, p2);
-		if (enableSuperSamplingAntiAliasing) {
-			alpha += computeCoverage(inverseDiameter.y, rotate(p0), rotate(p1), rotate(p2));
-		}
-	}
+	// 	alpha += computeCoverage(inverseDiameter.x, p0, p1, p2);
+	// 	if (enableSuperSamplingAntiAliasing) {
+	// 		alpha += computeCoverage(inverseDiameter.y, rotate(p0), rotate(p1), rotate(p2));
+	// 	}
+	// }
 
-	if (enableSuperSamplingAntiAliasing) {
-		alpha *= 0.5;
-	}
+	// if (enableSuperSamplingAntiAliasing) {
+	// 	alpha *= 0.5;
+	// }
 
-	alpha = clamp(alpha, 0.0, 1.0);
-	result = color * alpha;
+	// alpha = clamp(alpha, 0.0, 1.0);
+	// result = color * alpha;
 
-	if (enableControlPointsVisualization) {
-		// Visualize control points.
-		vec2 fw = fwidth(uv);
-		float r = 4.0 * 0.5 * (fw.x + fw.y);
-		for (int i = 0; i < glyph.count; i++) {
-			Curve curve = loadCurve(glyph.start + i);
+	// if (enableControlPointsVisualization) {
+	// 	// Visualize control points.
+	// 	vec2 fw = fwidth(uv);
+	// 	float r = 4.0 * 0.5 * (fw.x + fw.y);
+	// 	for (int i = 0; i < glyph.count; i++) {
+	// 		Curve curve = loadCurve(glyph.start + i);
 
-			vec2 p0 = curve.p0 - uv;
-			vec2 p1 = curve.p1 - uv;
-			vec2 p2 = curve.p2 - uv;
+	// 		vec2 p0 = curve.p0 - uv;
+	// 		vec2 p1 = curve.p1 - uv;
+	// 		vec2 p2 = curve.p2 - uv;
 
-			if (dot(p0, p0) < r*r || dot(p2, p2) < r*r) {
-				result = vec4(0, 1, 0, 1);
-				return;
-			}
+	// 		if (dot(p0, p0) < r*r || dot(p2, p2) < r*r) {
+	// 			result = vec4(0, 1, 0, 1);
+	// 			return;
+	// 		}
 
-			if (dot(p1, p1) < r*r) {
-				result = vec4(1, 0, 1, 1);
-				return;
-			}
-		}
-	}
+	// 		if (dot(p1, p1) < r*r) {
+	// 			result = vec4(1, 0, 1, 1);
+	// 			return;
+	// 		}
+	// 	}
+	// }
 }

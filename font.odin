@@ -90,6 +90,8 @@ create_test_vao :: proc() -> u32 {
 	gl.GenBuffers(1, &vbo)
 	gl.GenBuffers(1, &ebo)
 
+	fmt.println("Font VAO", vao)
+
 	// Data for a quad to render our curve on
 	vertices := [?]f32 {
 		// pos     // uv     // buffer index
